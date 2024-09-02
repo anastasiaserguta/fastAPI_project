@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title> Проверить возраст пользователя </title>
+</head>
+
+<body>
+    <p>
+        Введите имя: <br /> 
+        <input name="name" id="name" />
+    </p>
+    <p>
+        Ваш отзыв: <br />
+        <input name="feedback" id="feedback" />
+    </p>
+    <button onclick="send()">Отправить</button>
+
+    <script>
+        async function send() {
+
+            // получаем введеное в поле имя и возраст
+            const name = document.getElementById("name").value;
+            const feedback = document.getElementById("feedback").value;
+
+            // отправляем запрос
+            const response = await fetch("/feedback", {
+                method: "POST",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: name,
+                    feedback: feedback,
+                })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                window.alert(JSON.stringify(data.message));
+        }}
+    </script>
+</body>
+
+</html>

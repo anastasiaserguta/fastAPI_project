@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title> Тестовая страница HTML </title>
+</head>
+
+<body>
+
+    <div id="message"></div>
+    <p>
+        Введите число 1: <br />
+        <input name="digit" id="digit1" type="number" />
+    </p>
+    <p>
+        Введите число 2: <br />
+        <input name="digit" id="digit2" type="number" />
+    </p>
+    <button onclick="send()">Отправить</button>
+
+    <script>
+        async function send() {
+
+            // получаем введеное в поле имя и возраст
+            const digit1 = document.getElementById("digit1").value;
+            const digit2 = document.getElementById("digit2").value;
+
+            // отправляем запрос
+            const response = await fetch("/calculate", {
+                method: "POST",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    digit1: digit1,
+                    digit2: digit2
+                })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById("message").textContent = data.message;
+            }
+            else
+                console.log(response);
+        }
+    </script>
+</body>
+
+</html>
