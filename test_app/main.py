@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Body
 from fastapi.responses import FileResponse, JSONResponse
-from models import User, Feedback
+from models import User, Feedback, UserCreate
 
 
 test_app = FastAPI()
@@ -67,8 +67,75 @@ async def feedback(data=Body()) -> JSONResponse:
     user_feedback = Feedback(name=data['name'], message=data['feedback'])
     return {"message": f"Feedback received. Thank you, {user_feedback.name}"}
 
+test_simple_db = []
+
+@test_app.post('/create_user')
+async def create_user(new_user: UserCreate) -> UserCreate: 
+    test_simple_db.append(new_user)
+    return new_user
+
+@test_app.get('/show_users')
+async def show_users() -> JSONResponse:
+    return {'all_users': test_simple_db}
+
+sample_product_1 = {
+    "product_id": 123,
+    "name": "Smartphone",
+    "category": "Electronics",
+    "price": 599.99
+}
+sample_product_2 = {
+    "product_id": 456,
+    "name": "Phone Case",
+    "category": "Accessories",
+    "price": 19.99
+}
+sample_product_3 = {
+    "product_id": 789,
+    "name": "Iphone",
+    "category": "Electronics",
+    "price": 1299.99
+}
+sample_product_4 = {
+    "product_id": 101,
+    "name": "Headphones",
+    "category": "Accessories",
+    "price": 99.99
+}
+sample_product_5 = {
+    "product_id": 202,
+    "name": "Smartwatch",
+    "category": "Electronics",
+    "price": 299.99
+}
+
+sample_products = [sample_product_1, sample_product_2, sample_product_3, sample_product_4, sample_product_5]
 
 
-
-
+@test_app.get('/product/{product_id}')
+async def product(product_id: int) -> JSONResponse:
+    for pr in sample_products:
+        if pr['product_id'] == product_id:
+            return {'product': pr}
+        
+    return {'product': 'not found'}
+    
+@test_app.get('/products/search/')
+async def search(keyword: str, category: str | None = None, limit: int | None = 10) -> JSONResponse:
+    total = []
+    if category is not None:
+        for pr in sample_products:
+            if keyword.lower() in pr['name'].lower() and pr['category'] == category:
+                total.append(pr)
+    else:
+        for pr in sample_products:
+            if keyword.lower() in pr['name'].lower():
+                total.append(pr)
+    if len(total) == 0:
+        return {'product': 'not found'}
+    else:
+        if limit is None:
+            return {f'product in category {category}': total}
+        else:
+            return {f'product in category {category}': total[:limit]}
 

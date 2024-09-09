@@ -13,3 +13,10 @@ class Feedback(BaseModel):
     message: str
 
 
+class UserCreate(BaseModel):
+    name: str
+    email: str
+    age: int
+    is_subscribed: bool
+
+
