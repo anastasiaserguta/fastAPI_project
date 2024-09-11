@@ -1,6 +1,8 @@
-from fastapi import FastAPI, Body
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, Body, Form, Cookie
+from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.requests import Request
 from models import User, Feedback, UserCreate
+from random import randint
 
 
 test_app = FastAPI()
@@ -139,3 +141,34 @@ async def search(keyword: str, category: str | None = None, limit: int | None = 
         else:
             return {f'product in category {category}': total[:limit]}
 
+@test_app.get('/login')
+async def root():
+    return FileResponse('public/login.html')
+
+fake_db_with_passwords = {
+    'nastia': ['123', None],
+    'lena': ['123', None],
+    'fiona': ['1234', None],
+}
+
+
+@test_app.post('/logged')
+async def logged(response: Response, username=Form(), password=Form()):
+    global token
+    if username in fake_db_with_passwords.keys():
+        if fake_db_with_passwords[username][0] == password:
+            token = ''.join([str(randint(0, 55)) for _ in range(20)])
+            response.set_cookie(key='session_token', value=token, httponly=True)
+            fake_db_with_passwords[username][1] = token
+            return {'name': username, 'password': password, 'code': fake_db_with_passwords[username][1]}
+        else:
+            return{username: 'incorrect password'}
+    else:
+        return {'error': 'user not found'}
+
+@test_app.get('/user_profile')
+async def user_profile(session_token = Cookie()):
+    for user in fake_db_with_passwords.keys():
+        if session_token == fake_db_with_passwords[user][1]:
+            return {'username': user, 'password':fake_db_with_passwords[user][0]}
+    return {'message': 'Unauthorized'}
