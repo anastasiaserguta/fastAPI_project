@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Body, Form, Cookie
+from fastapi import FastAPI, Body, Form, Cookie, Header, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.requests import Request
 from models import User, Feedback, UserCreate
 from random import randint
+from typing import Annotated
+from re import match
 
 
 test_app = FastAPI()
@@ -172,3 +174,14 @@ async def user_profile(session_token = Cookie()):
         if session_token == fake_db_with_passwords[user][1]:
             return {'username': user, 'password':fake_db_with_passwords[user][0]}
     return {'message': 'Unauthorized'}
+
+@test_app.get('/headers')
+async def read_data(user_agent: Annotated[str | None, Header()] = None, accept_language: Annotated[str | None, Header()] = None):
+    reg_pattern = r'(^[a-z]{2}\-[A-Z]{2},[a-z]{2};?)(q=[0-9.]{3}?)'
+    if user_agent is None or accept_language is None or not match(reg_pattern, accept_language):
+        raise HTTPException(400)
+    else:
+        return {
+            'User-agent': user_agent,
+            'Accept-Language': accept_language,
+        }
