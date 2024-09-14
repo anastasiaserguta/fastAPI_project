@@ -1,13 +1,15 @@
-from fastapi import FastAPI, Body, Form, Cookie, Header, HTTPException
+from fastapi import FastAPI, Body, Form, Cookie, Header, HTTPException, Depends, status
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.requests import Request
-from models import User, Feedback, UserCreate
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from models import User, Feedback, UserCreate, UserAuth, USER_DATA
 from random import randint
 from typing import Annotated
 from re import match
 
 
 test_app = FastAPI()
+security = HTTPBasic()
 
 
 @test_app.get('/')
@@ -185,3 +187,21 @@ async def read_data(user_agent: Annotated[str | None, Header()] = None, accept_l
             'User-agent': user_agent,
             'Accept-Language': accept_language,
         }
+
+def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
+    user = get_user_from_db(credentials.username)
+    if user is None or user.password != credentials.password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials", headers={"WWW-Authenticate": "Basic"})
+    return user
+
+def get_user_from_db(username: str):
+    for user in USER_DATA:
+        if user.username == username:
+            return user
+    return None
+
+
+
+@test_app.get("/succesauth/")
+def get_protected_resource(user: User = Depends(authenticate_user)):
+    return {"secret message": "You got my secret, welcome!", "user_info": user}

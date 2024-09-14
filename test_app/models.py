@@ -19,4 +19,9 @@ class UserCreate(BaseModel):
     age: int
     is_subscribed: bool
 
+class UserAuth(BaseModel):
+    username: str
+    password: str
+
+USER_DATA = [UserAuth(**{"username": "nastia1", "password": "1234"}), UserAuth(**{"username": "nastia2", "password": "12345"})]
 
