@@ -2,14 +2,18 @@ from fastapi import FastAPI, Body, Form, Cookie, Header, HTTPException, Depends,
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.requests import Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from models import User, Feedback, UserCreate, UserAuth, USER_DATA
+from models import User, Feedback, UserCreate, UserAuth, USER_DATA, UserJwt, USER_DATA_JWT
 from random import randint
 from typing import Annotated
 from re import match
+import jwt
 
 
 test_app = FastAPI()
 security = HTTPBasic()
+
+SECRET_KEY = 'testsecretkey'
+ALGORITHM = 'HS256'
 
 
 @test_app.get('/')
@@ -200,8 +204,36 @@ def get_user_from_db(username: str):
             return user
     return None
 
-
-
 @test_app.get("/succesauth/")
 def get_protected_resource(user: User = Depends(authenticate_user)):
     return {"secret message": "You got my secret, welcome!", "user_info": user}
+
+
+def create_jwt_token(data: dict):
+    return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
+
+def get_user_from_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]) 
+        return payload.get("") 
+    except jwt.ExpiredSignatureError:
+        pass 
+    except jwt.InvalidTokenError:
+        pass
+
+def get_user(user_name: str):
+    for user in USER_DATA_JWT:
+        if user.get("user_name") == user_name:
+            return user
+    return None
+
+@test_app.post('/loginjwt')
+def loginjwt(user_name: str, password: str):
+    for user in USER_DATA_JWT:
+        if user.user_name == user_name and user.password == password:
+            return {"access_token": create_jwt_token({'sub': user_name, 'exp': 3})}
+    return Response(status_code=401)
+
+@test_app.get('/protected_resource/')
+def protected_resourse():
+    pass
