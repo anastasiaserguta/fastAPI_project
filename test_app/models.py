@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import List, Union
 from pydantic import BaseModel
+from typing import Optional
 
 
 
@@ -27,7 +28,8 @@ USER_DATA = [UserAuth(**{"username": "nastia1", "password": "1234"}), UserAuth(*
 
 
 class UserJwt(BaseModel):
-    user_name: str
+    username: str
     password: str
+    role: Optional[str] = None
 
-USER_DATA_JWT = [UserJwt(**{"user_name": "nastia1", "password": "1234"}), UserJwt(**{"user_name": "nastia2", "password": "12345"})]
+NEW_USERS = [UserJwt(**{"username": "nastia1", "password": "1234", "role": "admin"}), UserJwt(**{"username": "nastia2", "password": "12345"})]

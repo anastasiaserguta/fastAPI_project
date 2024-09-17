@@ -1,12 +1,14 @@
 from fastapi import FastAPI, Body, Form, Cookie, Header, HTTPException, Depends, status
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.requests import Request
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from models import User, Feedback, UserCreate, UserAuth, USER_DATA, UserJwt, USER_DATA_JWT
+from fastapi.security import HTTPBasic, HTTPBasicCredentials, OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from models import User, Feedback, UserCreate, UserAuth, USER_DATA, UserJwt, NEW_USERS
 from random import randint
 from typing import Annotated
 from re import match
+from datetime import datetime, timedelta, timezone
 import jwt
+
 
 
 test_app = FastAPI()
@@ -14,6 +16,7 @@ security = HTTPBasic()
 
 SECRET_KEY = 'testsecretkey'
 ALGORITHM = 'HS256'
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="loginjwt")
 
 
 @test_app.get('/')
@@ -208,32 +211,71 @@ def get_user_from_db(username: str):
 def get_protected_resource(user: User = Depends(authenticate_user)):
     return {"secret message": "You got my secret, welcome!", "user_info": user}
 
+NEW_USERS = {
+    "admin": {"username": "admin", "password": "adminpass", "role": "admin"},
+    "user": {"username": "user", "password": "userpass", "role": "user"},
+}
 
 def create_jwt_token(data: dict):
     return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
 
-def get_user_from_token(token: str):
+def get_user_from_token(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]) 
-        return payload.get("") 
+        exp_time = payload.get('exp')
+        username = payload.get('sub') 
+        return username
     except jwt.ExpiredSignatureError:
-        pass 
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     except jwt.InvalidTokenError:
-        pass
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-def get_user(user_name: str):
-    for user in USER_DATA_JWT:
-        if user.get("user_name") == user_name:
-            return user
+def get_user(username: str):
+    if username in NEW_USERS:
+        user_data = NEW_USERS[username]
+        return UserJwt(**user_data)
     return None
 
 @test_app.post('/loginjwt')
-def loginjwt(user_name: str, password: str):
-    for user in USER_DATA_JWT:
-        if user.user_name == user_name and user.password == password:
-            return {"access_token": create_jwt_token({'sub': user_name, 'exp': 3})}
-    return Response(status_code=401)
+async def loginjwt(data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    user_data_from_db = get_user(data.username)
+    if user_data_from_db is None or data.password != user_data_from_db.password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return {"access_token": create_jwt_token({'sub': data.username, 'exp': datetime.now(timezone.utc) + timedelta(minutes=3)})}
+    # raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
 @test_app.get('/protected_resource/')
-def protected_resourse():
-    pass
+async def protected_resourse(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {"message": "Auth succes!", "token_data": payload}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    
+@test_app.get("/admin/")
+def get_admin_info(current_user: str = Depends(get_user_from_token)):
+    user_data = get_user(current_user)
+    if user_data.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    return {"message": "Welcome admin!"}
+
+@test_app.get("/user/")
+def get_user_info(current_user: str = Depends(get_user_from_token)):
+    user_data = get_user(current_user)
+    if user_data.role != "user":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    return {"message": "Hello User!"}
